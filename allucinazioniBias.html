@@ -58,6 +58,8 @@
         .text-size-btn { width: 32px; height: 32px; border: none; background: var(--color-glass-bg); color: var(--color-accent-1); border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; font-weight: 700; }
         .text-size-btn:hover { background: var(--color-glass-border); }
         .text-size-label { font-size: 0.7rem; color: var(--color-text-muted); margin: 0 2px; }
+        .hover-word { transition: color 0.12s; cursor: default; }
+        .hover-word:hover { color: #FFEB3B !important; }
         @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.2s !important; } }
     </style>
 </head>
@@ -528,7 +530,7 @@ function goToSlide(n) {
   const prev = document.querySelector('.slide.active');
   const next = document.querySelector(`.slide[data-slide="${n}"]`);
   if (prev) prev.classList.remove('active');
-  if (next) { next.classList.add('active'); animateSlide(next); }
+  if (next) { next.classList.add('active'); animateSlide(next); enableWordHover(next); }
   current = n; updateNav();
 }
 function changeSlide(dir) {
@@ -632,7 +634,34 @@ window.initParticles = function(canvas, options) {
 
 document.querySelectorAll('.particle-canvas').forEach(c => window.initParticles(c, { interactive: true, count: 55 }));
 
-try { animateSlide(document.querySelector('.slide.active')); } catch (e) { console.warn('Initial animation error:', e); }
+try {
+  const initialSlide = document.querySelector('.slide.active');
+  animateSlide(initialSlide);
+  enableWordHover(initialSlide);
+} catch (e) { console.warn('Initial animation error:', e); }
+
+function enableWordHover(slide) {
+  if (slide.dataset.wordHover === '1') return;
+  slide.dataset.wordHover = '1';
+  const content = slide.querySelector('.content');
+  if (!content) return;
+  const skip = new Set(['SVG', 'BUTTON', 'A', 'CODE', 'PRE']);
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => skip.has(n.parentElement?.tagName) || n.parentElement?.closest('svg,button,a,code,pre,.hover-word') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(tn => {
+    const t = tn.textContent;
+    if (!t.trim()) return;
+    const frag = document.createDocumentFragment();
+    t.split(/(\s+)/).forEach(w => {
+      if (!w.trim()) { frag.appendChild(document.createTextNode(w)); }
+      else { const s = document.createElement('span'); s.className = 'hover-word'; s.textContent = w; frag.appendChild(s); }
+    });
+    tn.parentNode.replaceChild(frag, tn);
+  });
+}
 
 const initialFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 function changeTextSize(delta) {
