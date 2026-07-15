@@ -29,14 +29,14 @@
         }
     </style>
 <style>
-        :root { --color-bg: #0f172a; --color-text: #f1f5f9; --glow-color-rgb: 139,195,74; }
+        :root { --color-bg: #0f172a; --color-text: #f1f5f9; --glow-color-rgb: 139,195,74; --font-scale: 1; }
         *, *::before, *::after { box-sizing: border-box; }
         html, body { background: var(--color-bg); margin: 0; }
         body { font-family: var(--font-body); color: var(--color-text); overflow: hidden; height: 100vh; width: 100vw; }
         .deck { width: 100vw; height: 100vh; position: relative; }
         .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: scale(0.95); transition: opacity 0.7s ease, transform 0.7s ease; pointer-events: none; overflow: hidden; }
         .slide.active { opacity: 1; transform: scale(1); pointer-events: all; }
-        .slide > .content { position: relative; z-index: 2; width: 100%; max-width: 1100px; padding: clamp(0.65rem, 1.6vw, 1.5rem); }
+        .slide > .content { position: relative; z-index: 2; width: 100%; max-width: 1100px; padding: clamp(0.65rem, 1.6vw, 1.5rem); padding-bottom: clamp(70px, 10vh, 110px); }
         .nav-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 100; background: var(--color-glass-bg); backdrop-filter: blur(10px); padding: 10px 24px; border-radius: 40px; border: 1px solid var(--color-glass-border); }
         .nav-btn { width: 40px; height: 40px; border: none; background: var(--color-glass-bg); color: var(--color-accent-1); border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
         .nav-btn:hover { background: var(--color-glass-border); }
@@ -55,6 +55,9 @@
         .slide::before { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); background-repeat:repeat; background-size:256px 256px; opacity:0.03; mix-blend-mode:overlay; }
         .slide::after { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background:radial-gradient(ellipse at center, transparent 50%, var(--color-vignette) 100%); }
         .mouse-spotlight { position:fixed; inset:0; z-index:99; pointer-events:none; }
+        .text-size-btn { width: 32px; height: 32px; border: none; background: var(--color-glass-bg); color: var(--color-accent-1); border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; font-weight: 700; }
+        .text-size-btn:hover { background: var(--color-glass-border); }
+        .text-size-label { font-size: 0.7rem; color: var(--color-text-muted); margin: 0 2px; }
         @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.2s !important; } }
     </style>
 </head>
@@ -506,6 +509,9 @@
 <div class="slide-dots" id="dots"></div>
 <button aria-label="Slide successiva" class="nav-btn" onclick="changeSlide(1)">›</button>
 <span class="slide-counter" id="counter">1 / 15</span>
+<span class="text-size-label" style="margin-left:8px;">A</span>
+<button aria-label="Riduci dimensione testo" class="text-size-btn" onclick="changeTextSize(-0.1)">A−</button>
+<button aria-label="Aumenta dimensione testo" class="text-size-btn" onclick="changeTextSize(0.1)">A+</button>
 </div>
 <script>
 let current = 1;
@@ -627,6 +633,16 @@ window.initParticles = function(canvas, options) {
 document.querySelectorAll('.particle-canvas').forEach(c => window.initParticles(c, { interactive: true, count: 55 }));
 
 try { animateSlide(document.querySelector('.slide.active')); } catch (e) { console.warn('Initial animation error:', e); }
+
+const initialFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+function changeTextSize(delta) {
+  const html = document.documentElement;
+  let scale = parseFloat(html.dataset.fontScale) || 1;
+  scale = Math.min(Math.max(scale + delta, 0.7), 1.8);
+  html.dataset.fontScale = scale;
+  html.style.fontSize = (initialFontSize * scale) + 'px';
+  html.style.setProperty('--font-scale', scale);
+}
 </script>
 </body>
 </html>
