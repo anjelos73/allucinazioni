@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="viewport" name="slides-format"/>
+<title>Allucinazioni AI, Bias ed Errori di Ragionamento</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Inter:wght@300;400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+        @theme {
+            --color-bg: #0f172a;
+            --color-bg-deep: #020617;
+            --color-surface: #1e293b;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #cbd5e1;
+            --color-text-muted: #94a3b8;
+            --color-accent-1: #8BC34A;
+            --color-accent-2: #F5F0D0;
+            --color-accent-3: #D4A017;
+            --color-glass-bg: rgba(255,255,255,0.06);
+            --color-glass-border: rgba(255,255,255,0.1);
+            --color-vignette: rgba(0,0,0,0.55);
+            --font-display: 'Instrument Serif', serif;
+            --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+    </style>
+<style>
+        :root { --color-bg: #0f172a; --color-text: #f1f5f9; --glow-color-rgb: 139,195,74; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { background: var(--color-bg); margin: 0; }
+        body { font-family: var(--font-body); color: var(--color-text); overflow: hidden; height: 100vh; width: 100vw; }
+        .deck { width: 100vw; height: 100vh; position: relative; }
+        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transform: scale(0.95); transition: opacity 0.7s ease, transform 0.7s ease; pointer-events: none; overflow: hidden; }
+        .slide.active { opacity: 1; transform: scale(1); pointer-events: all; }
+        .slide > .content { position: relative; z-index: 2; width: 100%; max-width: 1100px; padding: clamp(0.65rem, 1.6vw, 1.5rem); }
+        .nav-controls { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 100; background: var(--color-glass-bg); backdrop-filter: blur(10px); padding: 10px 24px; border-radius: 40px; border: 1px solid var(--color-glass-border); }
+        .nav-btn { width: 40px; height: 40px; border: none; background: var(--color-glass-bg); color: var(--color-accent-1); border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+        .nav-btn:hover { background: var(--color-glass-border); }
+        .slide-dots { display: flex; gap: 8px; }
+        .slide-dots .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-glass-border); cursor: pointer; transition: background 0.3s, transform 0.3s; }
+        .slide-dots .dot.active { background: var(--color-accent-1); transform: scale(1.3); }
+        .slide-counter { font-size: 0.8rem; color: var(--color-text-muted); min-width: 40px; text-align: center; }
+        .reveal { opacity: 0; transform: translateY(20px); }
+        @keyframes float-slow { 0% { transform: translate(0,0) scale(1);} 25% { transform: translate(60px,-50px) scale(1.12);} 50% { transform: translate(-40px,40px) scale(0.9);} 75% { transform: translate(50px,20px) scale(1.08);} 100% { transform: translate(0,0) scale(1);} }
+        @keyframes float-drift { 0% { transform: translate(0,0) scale(1) rotate(0deg);} 33% { transform: translate(-50px,-60px) scale(1.15) rotate(3deg);} 66% { transform: translate(40px,30px) scale(0.88) rotate(-2deg);} 100% { transform: translate(0,0) scale(1) rotate(0deg);} }
+        @keyframes float { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-15px);} }
+        .gradient-mesh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); animation: float-slow 10s ease-in-out infinite; }
+        .blob:nth-child(2) { animation: float-drift 14s ease-in-out infinite; }
+        .blob:nth-child(3) { animation: float-slow 18s ease-in-out infinite reverse; }
+        .slide::before { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); background-repeat:repeat; background-size:256px 256px; opacity:0.03; mix-blend-mode:overlay; }
+        .slide::after { content:''; position:absolute; inset:0; z-index:1; pointer-events:none; background:radial-gradient(ellipse at center, transparent 50%, var(--color-vignette) 100%); }
+        .mouse-spotlight { position:fixed; inset:0; z-index:99; pointer-events:none; }
+        @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.2s !important; } }
+    </style>
+</head>
+<body>
+<div class="mouse-spotlight"></div>
+<div class="deck" role="presentation">
+<!-- 1. Titolo -->
+<div class="slide slide-1 active" data-slide="1">
+<div class="gradient-mesh">
+<div class="blob" style="width:500px;height:500px;top:-120px;right:-140px;background:var(--color-accent-1);opacity:0.16;"></div>
+<div class="blob" style="width:320px;height:320px;bottom:-80px;left:-60px;background:var(--color-accent-2);opacity:0.12;"></div>
+<div class="blob" style="width:220px;height:220px;top:45%;left:13%;background:var(--color-accent-3);opacity:0.1;"></div>
+</div>
+<canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+<div class="content text-center">
+<div aria-label="Icona robot che rappresenta l'intelligenza artificiale" class="text-[120px] mb-3 animate-[float_3s_ease-in-out_infinite]" role="img">🤖</div>
+<h1 class="font-display text-[clamp(2.6rem,6vw,4.8rem)] font-black bg-linear-to-br from-accent-1 via-accent-2 to-accent-1 bg-clip-text text-transparent tracking-tight mb-2 reveal">
+                Allucinazioni AI, Bias ed Errori di Ragionamento
+            </h1>
+<p class="text-[clamp(0.95rem,1.4vw,1.3rem)] font-light text-text-muted tracking-[6px] uppercase reveal">
+                Lezione di 3 ore per non esperti
+            </p>
+</div>
+</div>
+<!-- 2. Agenda della lezione -->
+<div class="slide slide-2" data-slide="2">
+<div class="gradient-mesh">
+<div class="blob" style="width:360px;height:360px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:260px;height:260px;bottom:-70px;left:-40px;background:var(--color-accent-2);opacity:0.07;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2.1rem,4.3vw,3rem)] font-bold reveal">Agenda delle 3 ore</h2>
+<div class="grid grid-cols-2 gap-6 mt-3">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-9 h-9 rounded-full bg-accent-1/20 flex items-center justify-center text-accent-1 font-bold">1</div>
+<p class="text-sm uppercase tracking-[0.15em] text-text-muted">Prima ora</p>
+</div>
+<h3 class="font-semibold text-lg mb-2">Da zero: cos'è l'IA</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Spiegazione semplice di intelligenza artificiale, algoritmo e modello. Metafora dello studente super-veloce. Esempi quotidiani.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-9 h-9 rounded-full bg-accent-1/20 flex items-center justify-center text-accent-1 font-bold">2</div>
+<p class="text-sm uppercase tracking-[0.15em] text-text-muted">Seconda ora</p>
+</div>
+<h3 class="font-semibold text-lg mb-2">Allucinazioni AI</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Metafore, definizione pratica, esempi reali e gioco "vero, falso, inventato" per riconoscere risposte inventate.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-9 h-9 rounded-full bg-accent-1/20 flex items-center justify-center text-accent-1 font-bold">3</div>
+<p class="text-sm uppercase tracking-[0.15em] text-text-muted">Terza ora</p>
+</div>
+<h3 class="font-semibold text-lg mb-2">Bias e pregiudizi nei dati</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Occhiali colorati, casi reali (sanità, lavoro, giustizia) e piano d'azione per usare l'IA in modo più equo.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-9 h-9 rounded-full bg-accent-1/20 flex items-center justify-center text-accent-1 font-bold">4</div>
+<p class="text-sm uppercase tracking-[0.15em] text-text-muted">Attività pratiche</p>
+</div>
+<h3 class="font-semibold text-lg mb-2">Esercizi, giochi e discussione</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Scrivere algoritmi come ricette, riscrivere domande "a prova di allucinazione" e riflettere su quando usare (e non usare) l'IA.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. Che cos&apos;è l&apos;IA -->
+<div class="slide slide-3" data-slide="3">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-80px;right:-70px;background:var(--color-accent-1);opacity:0.08;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-60px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Intelligenza artificiale in parole semplici</h2>
+<div aria-hidden="true" class="mt-2 flex justify-center reveal">
+<svg aria-label="Illustrazione concettuale cervello umano e cervello artificiale" height="140" role="img" viewbox="0 0 220 140" width="220" xmlns="http://www.w3.org/2000/svg">
+<desc>Schema semplificato di un cervello umano e di un cervello artificiale con circuiti, usato come supporto visivo nella lezione.</desc>
+<defs>
+<lineargradient id="gradHuman" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#8BC34A"></stop>
+<stop offset="100%" stop-color="#F5F0D0"></stop>
+</lineargradient>
+<lineargradient id="gradAI" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#D4A017"></stop>
+<stop offset="100%" stop-color="#8BC34A"></stop>
+</lineargradient>
+</defs>
+<!-- Human brain silhouette -->
+<circle cx="60" cy="70" fill="url(#gradHuman)" r="40" stroke="#0f172a" stroke-width="2"></circle>
+<path d="M40 70 C40 40 80 40 80 70 C80 100 40 100 40 70" fill="none" stroke="#0f172a" stroke-width="2"></path>
+<!-- AI brain with circuits -->
+<rect fill="url(#gradAI)" height="80" rx="16" ry="16" stroke="#0f172a" stroke-width="2" width="70" x="120" y="30"></rect>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="160" y1="45" y2="45"></line>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="170" y1="65" y2="65"></line>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="160" y1="85" y2="85"></line>
+<circle cx="160" cy="45" fill="#0f172a" r="4"></circle>
+<circle cx="170" cy="65" fill="#0f172a" r="4"></circle>
+<circle cx="160" cy="85" fill="#0f172a" r="4"></circle>
+</svg>
+</div>
+
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Per chi non ha background informatico, possiamo pensare all'intelligenza artificiale come a un insieme di programmi che imparano dai dati a fare cose che, di solito, richiedono intelligenza umana: capire frasi, riconoscere immagini, prendere piccole decisioni.</p>
+<div class="grid grid-cols-2 gap-6 mt-3">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Metafora dello studente</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Immagina uno studente che ha letto milioni di libri, articoli e pagine web. Sa usare bene le parole e può rispondere in fretta, ma non ha esperienza diretta del mondo come una persona: impara solo dalle frasi che ha visto e dai voti che ha ricevuto.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Cos'è un modello</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Un modello di IA è come il cervello di questo studente: una struttura matematica che, dopo l'addestramento su tanti esempi, sa completare frasi, suggerire risposte, riconoscere schemi. Non è magico: è statistica su larga scala.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. Cos&apos;è un algoritmo -->
+<div class="slide slide-4" data-slide="4">
+<div class="gradient-mesh">
+<div class="blob" style="width:320px;height:320px;top:-80px;right:-80px;background:var(--color-accent-1);opacity:0.08;"></div>
+<div class="blob" style="width:230px;height:230px;bottom:-60px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Algoritmo = ricetta passo per passo</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Un algoritmo è una sequenza di istruzioni chiare che ti porta da un problema a una soluzione. Come in cucina: prima prendi gli ingredienti, poi li mescoli, infine cuoci e controlli il risultato.</p>
+<div class="grid grid-cols-2 gap-6 mt-3">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Esempio: fare un panino</h3>
+<ul class="mt-2 text-sm text-text-secondary space-y-1">
+<li>1. Prendi il pane.</li>
+<li>2. Taglia il pane a metà.</li>
+<li>3. Metti il formaggio e il prosciutto.</li>
+<li>4. Chiudi il panino.</li>
+<li>5. Assaggia e, se manca sale, aggiungilo.</li>
+</ul>
+<p class="mt-3 text-xs text-text-muted">Attività in aula: ogni partecipante scrive la "ricetta" di un'azione quotidiana (fare il caffè, andare a scuola). Poi discutiamo come queste ricette sono già algoritmi.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Perché servono alla IA</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Gli algoritmi sono le regole con cui i modelli di IA elaborano i dati: decidono come imparare, come aggiornare i propri "pesi", come scegliere la risposta più probabile. Senza algoritmi, l'IA non saprebbe cosa fare con i dati.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 5. Come si allena un modello (pretraining, SFT, RLHF) -->
+<div class="slide slide-5" data-slide="5">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-70px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-60px;left:-50px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Come "studia" un modello di IA</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Nei grandi modelli di linguaggio, l'addestramento avviene in più fasi. Possiamo raccontarle come fossero le tappe della vita dello studente super-veloce.</p>
+<div class="grid grid-cols-3 gap-6 mt-3">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<p class="text-xs uppercase tracking-[0.18em] text-text-muted mb-2">Fase 1</p>
+<h3 class="font-semibold text-base mb-2">Pretraining</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Il modello viene alimentato con miliardi di pagine web, libri e articoli. Impara a "parlare", riconoscere frasi, capire contesti generali, come un bambino che impara leggendo tanto.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<p class="text-xs uppercase tracking-[0.18em] text-text-muted mb-2">Fase 2</p>
+<h3 class="font-semibold text-base mb-2">Supervised Fine-Tuning</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Gli sviluppatori gli mostrano esempi di domande e risposte "giuste". Il modello impara a seguire meglio le istruzioni e a comportarsi come un assistente educato.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<p class="text-xs uppercase tracking-[0.18em] text-text-muted mb-2">Fase 3</p>
+<h3 class="font-semibold text-base mb-2">RLHF (feedback umano)</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Persone reali valutano più risposte e dicono quali preferiscono. Il modello riceve "premi" o "punizioni" e si abitua a rispondere in modo utile, sicuro e rispettoso dei valori umani.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 6. Metafora dell&apos;amico che riempie i vuoti -->
+<div class="slide slide-6" data-slide="6">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Metafora: l'amico che non sa dire "non lo so"</h2>
+<div class="grid grid-cols-2 gap-6 mt-2">
+<div class="reveal">
+<p class="text-text-secondary text-sm leading-relaxed mb-3">Immagina un amico che vuole sempre sembrare informato. Quando gli chiedi qualcosa che non conosce, invece di ammetterlo, inventa una storia molto dettagliata.</p>
+<ul class="mt-2 text-sm text-text-secondary space-y-1">
+<li>Parla con tono sicuro.</li>
+<li>Usa nomi, date e numeri.</li>
+<li>Ma i dettagli non sono veri: li ha creati per riempire il vuoto.</li>
+</ul>
+<p class="mt-3 text-sm text-text-secondary leading-relaxed">Molti sistemi di IA generativa, quando mancano informazioni, si comportano in modo simile: producono frasi ben fatte, ma con contenuti inventati.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Esempio guidato per la classe</h3>
+<p class="text-text-secondary text-sm leading-relaxed">L'insegnante racconta una breve storia inventata, piena di dettagli (luogo, anno, nomi). Poi chiede agli studenti: "Secondo voi, questa storia è vera o inventata? Perché?". Si introduce così il concetto di allucinazione AI.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 7. Definizione pratica di allucinazione AI -->
+<div class="slide slide-7" data-slide="7">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Che cos'è un'allucinazione AI</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Possiamo dare una definizione operativa, facile da ricordare e usare nella vita di tutti i giorni.</p>
+<div class="mt-2 bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<p class="text-text-secondary text-sm leading-relaxed"><span class="font-semibold">Definizione semplificata:</span> un'allucinazione AI è una risposta prodotta da un sistema di intelligenza artificiale che <span class="font-semibold">sembra credibile</span> nella forma (linguaggio corretto, tono sicuro), ma contiene <span class="font-semibold">informazioni false, inventate o non verificabili</span>.</p>
+</div>
+<div class="grid grid-cols-3 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Forma</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Frasi ben scritte, italiano corretto, struttura logica apparentemente sensata.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Contenuto</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Dettagli errati, citazioni inesistenti, leggi o studi inventati.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Effetto sull'utente</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Creano una falsa sensazione di certezza: chi legge tende a fidarsi, se non verifica altrove.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 8. Esempi di allucinazione (gioco vero/falso) -->
+<div class="slide slide-8" data-slide="8">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Gioco: vero, falso o allucinato?</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Per allenare l'occhio critico, proponiamo alcune frasi che potrebbero uscire da un sistema di IA. Gli studenti devono decidere se sono vere, false o allucinate.</p>
+<div class="grid grid-cols-3 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-sm mb-2">Esempio 1</h3>
+<p class="text-text-secondary text-xs leading-relaxed mb-2">"Nel 2025 Einstein ha pubblicato un nuovo libro sulla meccanica quantistica."</p>
+<p class="text-text-muted text-xs">Discussione: Einstein è morto nel 1955, quindi la frase è impossibile. Allucinazione.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-sm mb-2">Esempio 2</h3>
+<p class="text-text-secondary text-xs leading-relaxed mb-2">"La capitale dell'Italia è Roma."</p>
+<p class="text-text-muted text-xs">Discussione: informazione verificabile su più fonti. Vera.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-sm mb-2">Esempio 3</h3>
+<p class="text-text-secondary text-xs leading-relaxed mb-2">"La legge n. 999 del 2099 stabilisce che tutte le città devono usare solo auto volanti."</p>
+<p class="text-text-muted text-xs">Discussione: numero di legge e anno inventati. Tipico esempio di risposta allucinata.</p>
+</div>
+</div>
+<p class="mt-2 text-xs text-text-muted reveal">Attività: gli studenti propongono altre frasi e il gruppo le classifica insieme. Si introduce l'idea che anche le risposte "autorevoli" vanno controllate.</p>
+</div>
+</div>
+<!-- 9. Checklist contro le allucinazioni -->
+<div class="slide slide-9" data-slide="9">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Checklist pratica: quando diffidare</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Una lista di domande semplici che ogni persona può farsi prima di fidarsi di una risposta generata da un'IA.</p>
+<div class="grid grid-cols-2 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<ul class="text-sm text-text-secondary space-y-1">
+<li>• Ci sono riferimenti concreti (libri, leggi, studi) che posso cercare?</li>
+<li>• La risposta è molto precisa su cose che non posso verificare facilmente?</li>
+<li>• Ho controllato almeno una fonte esterna indipendente?</li>
+<li>• Il tema riguarda salute, soldi, lavoro o giustizia? Allora verifico sempre.</li>
+</ul>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Mini-esercizio</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Gli studenti portano un esempio di risposta vista online (non solo da IA) e, usando la checklist, decidono insieme se è affidabile o potenzialmente allucinata.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 10. Bias: occhiali colorati -->
+<div class="slide slide-10" data-slide="10">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Bias: vedere il mondo con occhiali colorati</h2>
+<div aria-hidden="true" class="mt-2 flex justify-center reveal">
+<svg aria-label="Illustrazione concettuale cervello umano e cervello artificiale" height="140" role="img" viewbox="0 0 220 140" width="220" xmlns="http://www.w3.org/2000/svg">
+<desc>Schema semplificato di un cervello umano e di un cervello artificiale con circuiti, usato come supporto visivo nella lezione.</desc>
+<defs>
+<lineargradient id="gradHuman" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#8BC34A"></stop>
+<stop offset="100%" stop-color="#F5F0D0"></stop>
+</lineargradient>
+<lineargradient id="gradAI" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#D4A017"></stop>
+<stop offset="100%" stop-color="#8BC34A"></stop>
+</lineargradient>
+</defs>
+<!-- Human brain silhouette -->
+<circle cx="60" cy="70" fill="url(#gradHuman)" r="40" stroke="#0f172a" stroke-width="2"></circle>
+<path d="M40 70 C40 40 80 40 80 70 C80 100 40 100 40 70" fill="none" stroke="#0f172a" stroke-width="2"></path>
+<!-- AI brain with circuits -->
+<rect fill="url(#gradAI)" height="80" rx="16" ry="16" stroke="#0f172a" stroke-width="2" width="70" x="120" y="30"></rect>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="160" y1="45" y2="45"></line>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="170" y1="65" y2="65"></line>
+<line stroke="#0f172a" stroke-width="2" x1="130" x2="160" y1="85" y2="85"></line>
+<circle cx="160" cy="45" fill="#0f172a" r="4"></circle>
+<circle cx="170" cy="65" fill="#0f172a" r="4"></circle>
+<circle cx="160" cy="85" fill="#0f172a" r="4"></circle>
+</svg>
+</div>
+
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Il bias è una distorsione: l'IA vede il mondo in modo sbilanciato perché è stata addestrata con dati già pieni di pregiudizi umani.</p>
+<div class="grid grid-cols-2 gap-6 mt-2">
+<div class="reveal">
+<p class="text-text-secondary text-sm leading-relaxed mb-2">Metafora:</p>
+<ul class="text-sm text-text-secondary space-y-1">
+<li>• Occhiali rossi: tutto sembra più rosso di quanto sia.</li>
+<li>• Occhiali che favoriscono un gruppo: l'IA considera "migliori" certi profili rispetto ad altri, anche senza motivo valido.</li>
+</ul>
+<p class="mt-3 text-sm text-text-secondary leading-relaxed">Se i dati storici contengono discriminazioni verso certe categorie, il modello può imparare e amplificare queste ingiustizie.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Esempi concreti</h3>
+<ul class="text-sm text-text-secondary space-y-1">
+<li>• Sistemi sanitari meno accurati per alcuni gruppi di pazienti.</li>
+<li>• Filtri CV che preferiscono i profili maschili perché i dati passati erano sbilanciati.</li>
+<li>• Algoritmi di polizia che sorvegliano di più le stesse zone già controllate in passato.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- 11. Origini del bias (dati, umani, algoritmo) -->
+<div class="slide slide-11" data-slide="11">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Da dove nasce il bias?</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Nei materiali sul bias si distinguono diverse origini. Per il pubblico, possiamo riassumerle in tre grandi famiglie.</p>
+<div class="grid grid-cols-3 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Nei dati</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Campioni poco rappresentativi, misurazioni incomplete, esclusione di variabili importanti. In pratica: abbiamo fotografato male la realtà.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Negli esseri umani</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Pregiudizi personali, stereotipi e convinzioni che si infiltrano nella scelta e nell'etichettatura dei dati.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-5 reveal">
+<h3 class="font-semibold text-base mb-2">Nell'algoritmo</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Domande poste male al modello, criteri di premio/pena che spingono verso certe risposte invece che altre.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 12. Errori di ragionamento -->
+<div class="slide slide-12" data-slide="12">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Errori di ragionamento: collegare male i punti</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Un errore di ragionamento avviene quando i passaggi logici sono sbagliati: partiamo da fatti veri, ma arriviamo a conclusioni errate.</p>
+<div class="grid grid-cols-2 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Esempio umano</h3>
+<p class="text-text-secondary text-sm leading-relaxed">"Tutti i gatti hanno quattro zampe. Questo animale ha quattro zampe. Quindi è un gatto." I fatti di partenza sono veri, ma la conclusione no.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Nel modello di IA</h3>
+<p class="text-text-secondary text-sm leading-relaxed">Il modello può mescolare correttamente dei dati, ma combinarli male: confondere cause ed effetti, mescolare anni diversi, sovrapporre eventi che non sono collegati.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 13. Tabella: allucinazione, bias, errore -->
+<div class="slide slide-13" data-slide="13">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Mettere ordine: tre concetti diversi</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Una tabella riassuntiva aiuta a non confondere allucinazioni, bias ed errori di ragionamento.</p>
+<div class="mt-2 bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<div class="grid grid-cols-3 gap-4 text-sm">
+<div>
+<h3 class="font-semibold mb-1">Allucinazione</h3>
+<p class="text-text-secondary leading-relaxed">Risposta plausibile ma inventata, senza base nei dati reali.</p>
+</div>
+<div>
+<h3 class="font-semibold mb-1">Bias</h3>
+<p class="text-text-secondary leading-relaxed">Distorsione sistematica dovuta a dati o pregiudizi sbilanciati.</p>
+</div>
+<div>
+<h3 class="font-semibold mb-1">Errore di ragionamento</h3>
+<p class="text-text-secondary leading-relaxed">Collegamento logico scorretto tra fatti veri.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 14. Esercizio: riscrivere domande -->
+<div class="slide slide-14" data-slide="14">
+<div class="gradient-mesh">
+<div class="blob" style="width:340px;height:340px;top:-90px;right:-80px;background:var(--color-accent-1);opacity:0.09;"></div>
+<div class="blob" style="width:240px;height:240px;bottom:-50px;left:-40px;background:var(--color-accent-2);opacity:0.06;"></div>
+</div>
+<div class="content">
+<h2 class="font-display text-[clamp(2rem,4vw,2.8rem)] font-bold reveal">Esercizio: domande "a prova di allucinazione"</h2>
+<p class="text-text-secondary mt-2 text-base leading-relaxed reveal">Domande vaghe o assolute invitano il modello a inventare molto. Domande più precise riducono il rischio di allucinazioni.</p>
+<div class="grid grid-cols-2 gap-6 mt-2">
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Domanda problematica</h3>
+<p class="text-text-secondary text-sm leading-relaxed">"Dimmi la cura migliore per tutte le forme di cancro."</p>
+<p class="mt-2 text-xs text-text-muted">Non esiste una sola "cura migliore" valida in ogni caso. Il modello rischia di dare risposte pericolose o molto generiche.</p>
+</div>
+<div class="bg-glass-bg backdrop-blur-xl border border-glass-border rounded-xl p-6 reveal">
+<h3 class="font-semibold text-lg mb-2">Domanda migliorata</h3>
+<p class="text-text-secondary text-sm leading-relaxed">"Quali sono i principali tipi di trattamento per il cancro al polmone negli adulti, secondo le linee guida mediche recenti?"</p>
+<p class="mt-2 text-xs text-text-muted">Più precisa, limitata a un caso, richiama esplicitamente le linee guida mediche.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- 15. Conclusione e messaggio finale -->
+<div class="slide slide-15" data-slide="15">
+<div class="gradient-mesh">
+<div class="blob" style="width:520px;height:520px;top:-120px;right:-140px;background:var(--color-accent-1);opacity:0.18;"></div>
+<div class="blob" style="width:320px;height:320px;bottom:-90px;left:-70px;background:var(--color-accent-2);opacity:0.13;"></div>
+<div class="blob" style="width:220px;height:220px;top:40%;left:15%;background:var(--color-accent-3);opacity:0.12;"></div>
+</div>
+<canvas class="particle-canvas" style="position:absolute;inset:0;z-index:1;"></canvas>
+<div class="content text-center">
+<div aria-label="Icona cervello che rappresenta il pensiero critico umano" class="text-[96px] mb-4 animate-[float_3s_ease-in-out_infinite]" role="img">🧠</div>
+<h2 class="font-display text-[clamp(2.4rem,5vw,3.8rem)] font-bold bg-linear-to-br from-accent-1 via-accent-2 to-accent-1 bg-clip-text text-transparent tracking-tight mb-2 reveal">L'IA è potente, ma non infallibile</h2>
+<p class="text-text-secondary max-w-2xl mx-auto text-sm leading-relaxed reveal">Messaggio finale per i partecipanti: l'IA è uno strumento utile, soprattutto se sappiamo riconoscere allucinazioni, bias ed errori di ragionamento. Verificare, fare domande migliori e mantenere il pensiero critico è il modo migliore per usarla senza esserne usati.</p>
+</div>
+</div>
+</div>
+<div aria-label="Navigazione slide della lezione su allucinazioni AI, bias ed errori di ragionamento" class="nav-controls" role="navigation">
+<button aria-label="Slide precedente" class="nav-btn" onclick="changeSlide(-1)">‹</button>
+<div class="slide-dots" id="dots"></div>
+<button aria-label="Slide successiva" class="nav-btn" onclick="changeSlide(1)">›</button>
+<span class="slide-counter" id="counter">1 / 15</span>
+</div>
+<script>
+let current = 1;
+const total = document.querySelectorAll('.slide').length;
+const dotsContainer = document.getElementById('dots');
+const counter = document.getElementById('counter');
+for (let i = 1; i <= total; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 1 ? ' active' : '');
+  dot.onclick = () => goToSlide(i);
+  dotsContainer.appendChild(dot);
+}
+function goToSlide(n) {
+  const prev = document.querySelector('.slide.active');
+  const next = document.querySelector(`.slide[data-slide="${n}"]`);
+  if (prev) prev.classList.remove('active');
+  if (next) { next.classList.add('active'); animateSlide(next); }
+  current = n; updateNav();
+}
+function changeSlide(dir) {
+  let next = current + dir;
+  if (next < 1) next = total;
+  if (next > total) next = 1;
+  goToSlide(next);
+}
+function updateNav() {
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i + 1 === current);
+  });
+  counter.textContent = current + ' / ' + total;
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); changeSlide(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); changeSlide(-1); }
+});
+let touchStartX = 0;
+document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', (e) => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) changeSlide(diff > 0 ? 1 : -1);
+});
+function animateSlide(slide) {
+  slide.querySelectorAll('.reveal').forEach((el, i) => {
+    el.style.transition = 'none';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.offsetHeight;
+    const delay = i * 0.08;
+    el.style.transition = `opacity 0.35s ease ${delay}s, transform 0.35s ease ${delay}s`;
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0px)';
+  });
+}
+
+document.addEventListener('mousemove', (e) => {
+  const spotlight = document.querySelector('.mouse-spotlight');
+  if (spotlight) {
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--glow-color-rgb').trim() || '139,195,74';
+    spotlight.style.background = `radial-gradient(600px circle at ${e.clientX}px ${e.clientY}px, rgba(${rgb}, 0.06), transparent 40%)`;
+  }
+});
+
+window.initParticles = function(canvas, options) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  const interactive = options.interactive !== false;
+  const count = options.count || (interactive ? 55 : 18);
+  let mx = -1000, my = -1000;
+  const rgb = getComputedStyle(document.documentElement).getPropertyValue('--glow-color-rgb').trim() || '139,195,74';
+  const [r, g, b] = rgb.split(',').map(Number);
+  const particles = Array.from({ length: count }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    size: Math.random() * 2.5 + 0.8,
+    alpha: Math.random() * 0.35 + 0.1
+  }));
+  if (interactive) {
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mx = e.clientX - rect.left;
+      my = e.clientY - rect.top;
+    });
+    canvas.addEventListener('mouseleave', () => { mx = -1000; my = -1000; });
+  }
+  (function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      if (interactive) {
+        const dx = p.x - mx,
+              dy = p.y - my,
+              dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          const force = (120 - dist) / 120 * 2;
+          p.vx += (dx / dist) * force * 0.1;
+          p.vy += (dy / dist) * force * 0.1;
+        }
+      }
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${p.alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(animate);
+  })();
+};
+
+document.querySelectorAll('.particle-canvas').forEach(c => window.initParticles(c, { interactive: true, count: 55 }));
+
+try { animateSlide(document.querySelector('.slide.active')); } catch (e) { console.warn('Initial animation error:', e); }
+</script>
+</body>
+</html>
